@@ -16,7 +16,7 @@ end
 # Higher priority is more urgent, and lower ttc is better, so we sort by
 # priority plus inverse of ttc. Then invert everything to reverse the sort.
 def sort_jobs(all_jobs)
-    all_jobs.sort_by { |m,k| 1.0/(k["priority"] + 1/k["ttc"]) }
+    all_jobs.sort_by { |m,k| 1.0/(k["priority"] + 1.0/k["ttc"]) }
 end
 
 # List all jobs
@@ -108,7 +108,7 @@ end
 
 # Write jobs to file
 def write_jobs (all_jobs)
-    f = File.open("job_list.yaml", "w")
+    f = File.open($jobs_file, "w")
     f.write all_jobs.to_yaml
     f.close
 end
@@ -117,10 +117,24 @@ end
 ## Main
 ##
 
-usage = "queu.rb [add|del|list|pick] [OPTIONS]"
+# This is where the job data is stored.
+$jobs_file=ENV['HOME']+'/.queu_jobs.yaml'
 
-# First we read in all the current jobs
-all_jobs = YAML::load( File.open "job_list.yaml" )
+# Check that the file exists
+unless File.exist? $jobs_file
+    printf "The data file %s does not exist.\n", $jobs_file
+    printf "Run 'touch %s' to create it.\n", $jobs_file
+    exit 0
+end
+
+# Read in all the current jobs
+all_jobs = YAML::load( File.open $jobs_file )
+
+# Initialize all_jobs if the file was empty
+if all_jobs == false
+    puts "Initializing empty data file."
+    all_jobs = {}
+end
 
 case ARGV[0]
 when "add"
@@ -132,5 +146,5 @@ when "list"
 when "pick"
     pick_job all_jobs, ARGV[1]
 else
-    puts usage
+    puts "queu.rb [add|del|list|pick] [OPTIONS]"
 end
