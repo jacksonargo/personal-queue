@@ -4,24 +4,36 @@ require 'yaml'
 
 ## Functions
 
-## Get the date and time formatted as an integer
-def get_time
-    return Time.now.strftime("%Y%m%d%H%M%S").to_i
+## Calculate the urgency of a job
+def job_urgency(job)
+    # Start with the user set priority
+    points = job[1]["priority"]
+    # Add in time to completion. Lower is better.
+    points += 30.0/job[1]["ttc"]
+    # Calculate the age multiplier
+    age_rate = 1.0/(11 - job[1]["priority"])
+    # Add in the priority due to age. Older is better.
+    points += age_rate * (Time.now - job[1]["added"])/60/60/24
+    return points
 end
 
 ## Print out a job entry
 def print_job(job)
     printf "Name: %s\n", job[0]
-    printf "    Summary: %s\n", job[1]["summary"]
-    printf "    Priority: %i\n", job[1]["priority"]
-    printf "    TTC: %i min\n", job[1]["ttc"]
-    printf "    Added: %i\n", job[1]["added"]
-    printf "    Completed: %i\n", job[1]["completed"] if job[1]["completed"] != nil
+    printf "    Summary:   %s\n", job[1]["summary"]
+    printf "    Priority:  %i\n", job[1]["priority"]
+    printf "    TTC:       %i min\n", job[1]["ttc"]
+    printf "    Added:     %s\n", job[1]["added"].to_s
+    if job[1]["completed"] != nil
+        printf "    Completed: %s\n", job[1]["completed"].to_s
+    end
+    puts
 end
 
 ## Sort all jobs by priority decreasing.
-# Higher priority is more urgent, and lower ttc is better, so we sort by
-# priority plus inverse of ttc. Then invert everything to reverse the sort.
+# Higher priority meanis more urgent.
+# Lower time to completion (ttc) is more urgent.
+# The older the job is the more urgent it becomes.
 # Returns an array.
 def sort_jobs(all_jobs)
     return all_jobs.sort do |x,y| 
@@ -32,10 +44,7 @@ def sort_jobs(all_jobs)
             1
         # For uncomp, higher priority is more urgent, and lower ttc is better
         elsif x[1]["completed"] == nil and y[1]["completed"] == nil
-           x_points = x[1]["priority"] + 1.0/x[1]["ttc"]
-           y_points = y[1]["priority"] + 1.0/y[1]["ttc"]
-           # Sort high to low
-           y_points <=> x_points
+            job_urgency(y) <=> job_urgency(x)
         # For completed, just sort by date completed.
         else
            y[1]["completed"] <=> x[1]["completed"]
@@ -69,30 +78,27 @@ def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
         exit
     end
 
-    # Get the date; I'm not using this yet, but maybe soon.
-    date = get_time
-
     # Now we'll prompt the user for any info not passed as an argument.
-    if name == nil
+    while name == nil
         printf "Name: "
         name = STDIN.gets.chomp
     end
-    if summary == nil
+    while summary == nil
         printf "Summary: "
         summary = STDIN.gets.chomp
     end
-    if priority == nil
+    while priority == nil or priority < 1 or priority > 10
         printf "Priority (1-10): "
-        priority = STDIN.gets.chomp
+        priority = STDIN.gets.chomp.to_i
     end
-    if ttc == nil
-        printf "Estimated Time (min): "
-        ttc = STDIN.gets.chomp
+    while ttc == nil or ttc < 1
+        printf "Estimated Time (>=1min): "
+        ttc = STDIN.gets.chomp.to_i
     end
 
     # Add the job to the list
-    all_jobs[name] = {"summary" => summary, "added" => date,
-                         "priority" => priority.to_i, "ttc" => ttc.to_i }
+    all_jobs[name] = {"summary" => summary, "added" => Time.now,
+                         "priority" => priority, "ttc" => ttc }
     # Write the list
     write_jobs all_jobs
 end
@@ -106,7 +112,7 @@ def del_job(all_jobs, name=nil)
     end
 
     # Check if a name was provided
-    if name == nil
+    while name == nil
         printf "Name of job to remove: "
         name = STDIN.gets.chomp
     end
