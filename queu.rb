@@ -45,7 +45,7 @@ end
 
 ## Print jobs to screen
 def list_jobs(all_jobs, list = nil)
-    if name == "--help"
+    if list == "--help"
         puts "queu.rb list [current|completed|all]"
         exit
     end
