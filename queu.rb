@@ -101,8 +101,15 @@ def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
         ttc = STDIN.gets.chomp.to_i
     end
 
+    # If the job already exists, don't change it's date
+    if all_jobs[name] != nil
+        added = all_jobs[name]["added"]
+    else
+        added = Time.now
+    end
+
     # Add the job to the list
-    all_jobs[name] = {"summary" => summary, "added" => Time.now,
+    all_jobs[name] = {"summary" => summary, "added" => added,
                          "priority" => priority, "ttc" => ttc }
     # Write the list
     write_jobs all_jobs
@@ -167,6 +174,32 @@ def pick_job(all_jobs, algorithm = nil)
     end
 end
 
+## Modify a job in the queu
+def mod_job(all_jobs, name, attribute, value)
+
+    # Check to make sure the job already exists
+    name = '' if name == nil
+    while all_jobs[name] == nil
+        printf "Job name: "
+        name = STDIN.gets.chomp
+        printf "%s is not valid.\n", name
+    end
+    # Reference the job to motify with modded
+    modded = all_jobs[name]
+    # Check the attribute exists
+    attribute = '' if attribute == nil
+    while modded[attribute] == nil
+        printf "Attribute: "
+        attribute = STDIN.gets.chomp.downcase
+        printf "%s is not valid\n", attribute
+    end
+    # Modify the job
+    modded[attribute] = value
+    # Re-add it to make sure the modifications are sane.
+    add_job all_jobs, name, modded["summary"], modded["priority"],
+        modded["ttc"]
+end
+
 ## Write jobs to file
 def write_jobs (all_jobs)
     f = File.open($jobs_file, "w")
@@ -197,6 +230,9 @@ if all_jobs == false
     all_jobs = {}
 end
 
+# Default to show current jobs
+ARGV[0] = "list" if ARGV[0] == nil
+
 case ARGV[0]
 when "add"
     add_job all_jobs, ARGV[1], ARGV[2], ARGV[3], ARGV[4]
@@ -208,6 +244,8 @@ when "pick"
     pick_job all_jobs, ARGV[1]
 when "mark"
     mark_job all_jobs, ARGV[1], ARGV[2]
+when "mod"
+    mod_job all_jobs, ARGV[1], ARGV[2], ARGV[3]
 else
-    puts "queu.rb [add|del|mark|list|pick] [OPTIONS]"
+    puts "queu.rb [add|del|mod|mark|list|pick] [OPTIONS]..."
 end
