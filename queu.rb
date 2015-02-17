@@ -142,7 +142,7 @@ def mark_job(all_jobs, name, status)
     end
 
     # Store the date of completion
-    all_jobs[name]["completed"] = get_time
+    all_jobs[name]["completed"] = Time.now
 
     # Write the list
     write_jobs all_jobs
