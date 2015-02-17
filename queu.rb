@@ -83,15 +83,20 @@ def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
         printf "Name: "
         name = STDIN.gets.chomp
     end
+    
     while summary == nil
         printf "Summary: "
         summary = STDIN.gets.chomp
     end
-    while priority == nil or priority < 1 or priority > 10
+    
+    priority = priority.to_i
+    while priority < 1 or priority > 10
         printf "Priority (1-10): "
         priority = STDIN.gets.chomp.to_i
     end
-    while ttc == nil or ttc < 1
+
+    ttc = ttc.to_i
+    while ttc < 1
         printf "Estimated Time (>=1min): "
         ttc = STDIN.gets.chomp.to_i
     end
