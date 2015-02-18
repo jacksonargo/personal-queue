@@ -22,7 +22,7 @@ Personal Queue
     queue.rb mod [NAME] [ATTRIBUTE] [VALUE]
     queue.rb mark [NAME] [STATUS]
     queue.rb list [current|completed|all]
-    queue.rb pick [top|high|rand]
+    queue.rb pick [urgent|random]
 
 ## Description
 
