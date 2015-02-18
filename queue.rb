@@ -170,11 +170,11 @@ def pick_job(all_jobs, algorithm = nil)
     when "top"
         # Simply print the highest priority job
         print_job sorted[0]
-    when "high"
+    when "urgent"
         # Choose a random job from the 5 highed priority
         x = 5 < sorted.length ? 5 : sorted.length
         print_job sorted[rand(x)]
-    when "rand"
+    when "random"
         # Choose a completely random job
         print_job sorted[rand(sorted.length)]
     else 
