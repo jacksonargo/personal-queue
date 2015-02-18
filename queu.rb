@@ -136,13 +136,22 @@ end
 
 ## Mark a job as completed or uncompleted
 def mark_job(all_jobs, name, status)
-    if name == "--help" or name == nil
-        puts "queu.rb mark NAME [completed]"
+    if name == "--help"
+        puts "queu.rb mark NAME [completed|uncompleted]"
         exit
     end
 
-    # Store the date of completion
-    all_jobs[name]["completed"] = Time.now
+    name = '' if all_jobs[name] == nil
+    while all_jobs[name] == nil
+        printf "Name of job to update: "
+        name = STDIN.gets.chomp
+    end
+
+    # Store the date of completion by default
+    all_jobs[name]["completed"] = Time.now if status != "uncompleted"
+
+    # Remove the date of completion if uncompleted
+    all_jobs[name]["completed"] = nil      if status == "uncompleted"
 
     # Write the list
     write_jobs all_jobs
