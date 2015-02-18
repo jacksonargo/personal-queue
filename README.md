@@ -99,9 +99,11 @@ neglected long enough, a job of priority 1 can be sorted above a job of
 priority 10. Once a job is marked as completed, it is sorted with other
 completed jobs by the time of completion.
 Uncompleted jobs are sorted by the following formula:
+
     PRIORITY + 30/TTC + DAYS OLD/(10-PRIORITY)
 
 ## Examples
+
     queu.rb add "queu.rb-README.md" "Write the README.md file for queu.rb" 7 30
     queu.rb mark "queu.rb-README.md"
 
