@@ -59,6 +59,11 @@ def list_jobs(all_jobs, list = nil)
         exit
     end
 
+    if all_jobs == {}
+        puts "No jobs to list!"
+        exit
+    end
+
     # Set the default list to print
     list = "current" if list == nil
     # Print the list of jobs
@@ -226,8 +231,12 @@ $jobs_file=ENV['HOME']+'/.queue_jobs.yaml'
 # Check that the file exists
 unless File.exist? $jobs_file
     printf "The data file %s does not exist.\n", $jobs_file
-    printf "Run 'touch %s' to create it.\n", $jobs_file
-    exit 0
+    printf "Would you like to create it [Y/n]? "
+    ans = STDIN.gets.chomp
+    if ans != 'n' or ans != 'no'
+        require 'fileutils'
+        FileUtils.touch($jobs_file)
+    end
 end
 
 # Read in all the current jobs
@@ -237,6 +246,7 @@ all_jobs = YAML::load( File.open $jobs_file )
 if all_jobs == false
     puts "Initializing empty data file."
     all_jobs = {}
+    write_jobs all_jobs
 end
 
 # Default to show current jobs
