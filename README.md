@@ -1,4 +1,4 @@
-Personal Queu
+Personal Queue
 =============
 
 #### Table of Contents
@@ -116,4 +116,4 @@ ignition.argo@gmail.com
 ## Authors
 * Jackson Argo
 
-Queu.rb                            2015-02-17                         README.md
+Queue.rb                            2015-02-17                         README.md
