@@ -55,7 +55,7 @@ end
 ## Print jobs to screen
 def list_jobs(all_jobs, list = nil)
     if list == "--help"
-        puts "queu.rb list [current|completed|all]"
+        puts "queue.rb list [current|completed|all]"
         exit
     end
 
@@ -69,12 +69,12 @@ def list_jobs(all_jobs, list = nil)
     end
 end
 
-## Insert a job into the queu.
+## Insert a job into the queue.
 # Either take the job info from options, or probe the user.
 def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
     # Check if we need to print help
     if name == "--help"
-        puts "queu.rb add NAME SUMMARY PRIORITY TTC"
+        puts "queue.rb add NAME SUMMARY PRIORITY TTC"
         exit
     end
 
@@ -115,11 +115,11 @@ def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
     write_jobs all_jobs
 end
 
-## Remove a job from the queu
+## Remove a job from the queue
 def del_job(all_jobs, name=nil)
     # Check if we need to print help
     if name == "--help"
-        puts "queu.rb del NAME"
+        puts "queue.rb del NAME"
         exit
     end
 
@@ -137,7 +137,7 @@ end
 ## Mark a job as completed or uncompleted
 def mark_job(all_jobs, name, status)
     if name == "--help"
-        puts "queu.rb mark NAME [completed|uncompleted]"
+        puts "queue.rb mark NAME [completed|uncompleted]"
         exit
     end
 
@@ -157,7 +157,7 @@ def mark_job(all_jobs, name, status)
     write_jobs all_jobs
 end
 
-## Pick a job from the queu
+## Pick a job from the queue
 def pick_job(all_jobs, algorithm = nil)
     # Sort the jobs
     sorted = sort_jobs(all_jobs)
@@ -178,12 +178,12 @@ def pick_job(all_jobs, algorithm = nil)
         # Choose a completely random job
         print_job sorted[rand(sorted.length)]
     else 
-        puts "queu.rb pick [TOP|HIGH|RAND]"
+        puts "queue.rb pick [TOP|HIGH|RAND]"
         exit
     end
 end
 
-## Modify a job in the queu
+## Modify a job in the queue
 def mod_job(all_jobs, name, attribute, value)
 
     # Check to make sure the job already exists
@@ -221,7 +221,7 @@ end
 ##
 
 # This is where the job data is stored.
-$jobs_file=ENV['HOME']+'/.queu_jobs.yaml'
+$jobs_file=ENV['HOME']+'/.queue_jobs.yaml'
 
 # Check that the file exists
 unless File.exist? $jobs_file
@@ -256,5 +256,5 @@ when "mark"
 when "mod"
     mod_job all_jobs, ARGV[1], ARGV[2], ARGV[3]
 else
-    puts "queu.rb [add|del|mod|mark|list|pick] [OPTIONS]..."
+    puts "queue.rb [add|del|mod|mark|list|pick] [OPTIONS]..."
 end

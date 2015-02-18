@@ -16,26 +16,26 @@ Personal Queu
 6. [Authors](#authors)
 
 ## Synopsis
-    queu.rb [SUBCOMMAND] [OPTION]...
-    queu.rb add [NAME] [SUMMARY] [PRIORITY] [TIME TO COMPLETION]
-    queu.rb del [NAME]
-    queu.rb mod [NAME] [ATTRIBUTE] [VALUE]
-    queu.rb mark [NAME] [STATUS]
-    queu.rb list [current|completed|all]
-    queu.rb pick [top|high|rand]
+    queue.rb [SUBCOMMAND] [OPTION]...
+    queue.rb add [NAME] [SUMMARY] [PRIORITY] [TIME TO COMPLETION]
+    queue.rb del [NAME]
+    queue.rb mod [NAME] [ATTRIBUTE] [VALUE]
+    queue.rb mark [NAME] [STATUS]
+    queue.rb list [current|completed|all]
+    queue.rb pick [top|high|rand]
 
 ## Description
 
-This is a ruby script to maintain a personal queu of jobs that you don't want 
+This is a ruby script to maintain a personal queue of jobs that you don't want 
 to forget to complete. The jobs are sorted by priority, estimated time
-required, and how long the job has been in the queu. The jobs are stored in the
-yaml file ~/.queu\_list.yaml.
+required, and how long the job has been in the queue. The jobs are stored in the
+yaml file ~/.queue\_jobs.yaml.
 
 ## Operations
 
 ### add
 
-Adds a job to the queu. Job description can be given as parameters or 
+Adds a job to the queue. Job description can be given as parameters or 
 interactively.
 
 * *NAME* is a descriptive name for the job.
@@ -49,7 +49,7 @@ with higher TTC.
 
 ### del
 
-Deletes the job NAME from the queu. NAME can be given as a parameter or
+Deletes the job NAME from the queue. NAME can be given as a parameter or
 interactively.
 
 * *NAME* is the name of the job to delete.
@@ -77,17 +77,17 @@ apart from completed jobs.
 
 ### list
 
-Lists the jobs in the que. If no other argument is given, queu.rb will
+Lists the jobs in the que. If no other argument is given, queue.rb will
 sort and list only the uncompleted jobs. To list only the completed
-jobs use 'queu.rb list completed', and to list all jobs use
-'queu.rb list all'.
+jobs use 'queue.rb list completed', and to list all jobs use
+'queue.rb list all'.
 
 ### pick
 
 Prints only one job from the que. If no other argument is given, then
 the most urgent job is printed. To pick a random but urgent job use
-'queu.rb pick urgent', and to pick a completely random job use
-'queu.rb pick random'.
+'queue.rb pick urgent', and to pick a completely random job use
+'queue.rb pick random'.
 
 ## Sorting
 
@@ -106,8 +106,8 @@ Uncompleted jobs are sorted by the following formula:
 
 ## Examples
 
-    queu.rb add "queu.rb-README.md" "Write the README.md file for queu.rb" 7 30
-    queu.rb mark "queu.rb-README.md"
+    queue.rb add "queue.rb-README.md" "Write the README.md file for queue.rb" 7 30
+    queue.rb mark "queue.rb-README.md"
 
 ## Bugs
 If you find any bugs or want to recommend features, send an email to
