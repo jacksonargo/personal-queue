@@ -44,7 +44,7 @@ as a single string.
 * *PRIORITY* is an integer 1-10. Higher priority means the job needs to be
 completed sooner.
 * *TIME TO COMPLETION*, or TTC, is an estimate in minutes of how long you think it will
-take to finish this job. Jobs with lower TTC will have precedence over jobs
+take to finish this job. Jobs with lower TTC will be sorted before jobs
 with higher TTC.
 
 ### del
@@ -68,7 +68,7 @@ completed.
 ### mark
 
 Marks NAME as completed or uncompleted. If no STATUS is given, then
-then the job will be marked as completed. If NAME is not given, it will
+the job will be marked as completed. If NAME is not given, it will
 be asked for interactively.
 
 * *NAME* is the name of the job.
@@ -77,14 +77,14 @@ apart from completed jobs.
 
 ### list
 
-Lists the jobs in the que. If no other argument is given, queue.rb will
+Lists the jobs in the queue. If no other argument is given, queue.rb will
 sort and list only the uncompleted jobs. To list only the completed
 jobs use 'queue.rb list completed', and to list all jobs use
 'queue.rb list all'.
 
 ### pick
 
-Prints only one job from the que. If no other argument is given, then
+Prints only one job from the queue. If no other argument is given, then
 the most urgent job is printed. To pick a random but urgent job use
 'queue.rb pick urgent', and to pick a completely random job use
 'queue.rb pick random'.
