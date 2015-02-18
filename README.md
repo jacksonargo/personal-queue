@@ -5,6 +5,12 @@ Personal Queu
 1. [Synopsis](#synopsis)
 2. [Description](#desctiption)
 3. [Operations](#operations)
+    * [add](#add)
+    * [del](#del)
+    * [mod](#mod)
+    * [mark](#mark)
+    * [list](#list)
+    * [pick](#pick)
 4. [Sorting](#sorting)
 5. [Bugs](#bugs)
 6. [Authors](#authors)
@@ -23,7 +29,7 @@ Personal Queu
 This is a ruby script to maintain a personal queu of jobs that you don't want 
 to forget to complete. The jobs are sorted by priority, estimated time
 required, and how long the job has been in the queu. The jobs are stored in the
-yaml file ~/queu\_list.yaml.
+yaml file ~/.queu\_list.yaml.
 
 ## Operations
 
@@ -32,12 +38,12 @@ yaml file ~/queu\_list.yaml.
 Adds a job to the queu. Job description can be given as parameters or 
 interactively.
 
-* NAME is a descriptive name for the job.
-* SUMMARY is a brief summary of the what you have to do. This should be given
+* *NAME* is a descriptive name for the job.
+* *SUMMARY* is a brief summary of the what you have to do. This should be given
 as a single string.
-* PRIORITY is an integer 1-10. Higher priority means the job needs to be
+* *PRIORITY* is an integer 1-10. Higher priority means the job needs to be
 completed sooner.
-* TIME TO COMPLETION is an estimate in minutes of how long you think it will
+* *TIME TO COMPLETION*, or TTC, is an estimate in minutes of how long you think it will
 take to finish this job. Jobs with lower TTC will have precedence over jobs
 with higher TTC.
 
@@ -46,7 +52,7 @@ with higher TTC.
 Deletes the job NAME from the queu. NAME can be given as a parameter or
 interactively.
 
-* NAME is the name of the job to delete.
+* *NAME* is the name of the job to delete.
 
 ### mod
 
@@ -54,10 +60,10 @@ Modifies the description of a job. Currently you can only modify one
 attribute at a time. The NAME, ATTRIBUTE, and VALUE can be given as
 parameters or interactively.
 
-* NAME is the name of the job to modify.
-* ATTRIBUTE can be one of name, summary, priority, ttc, added, or
+* *NAME* is the name of the job to modify.
+* *ATTRIBUTE* can be one of name, summary, priority, ttc, added, or
 completed.
-* VALUE is the new description of that attribute.
+* *VALUE* is the new description of that attribute.
 
 ### mark
 
@@ -65,8 +71,8 @@ Marks NAME as completed or uncompleted. If no STATUS is given, then
 then the job will be marked as completed. If NAME is not given, it will
 be asked for interactively.
 
-* NAME is the name of the job.
-* STATUS can be either completed or uncompleted. Uncompleted jobs are sorted
+* *NAME* is the name of the job.
+* *STATUS* can be either completed or uncompleted. Uncompleted jobs are sorted
 apart from completed jobs.
 
 ### list
@@ -83,7 +89,7 @@ the most urgent job is printed. To pick a random but urgent job use
 'queu.rb pick urgent', and to pick a completely random job use
 'queu.rb pick random'.
 
-## SORTING
+## Sorting
 
 Jobs are sorted by combining priority, time to completion (TTC), and age.
 Jobs with higher priority and lower TTC are usually sorted above jobs with
@@ -95,15 +101,15 @@ completed jobs by the time of completion.
 Uncompleted jobs are sorted by the following formula:
     PRIORITY + 30/TTC + DAYS OLD/(10-PRIORITY)
 
-## EXAMPLES
+## Examples
     queu.rb add "queu.rb-README.md" "Write the README.md file for queu.rb" 7 30
     queu.rb mark "queu.rb-README.md"
 
-## BUGS
+## Bugs
 If you find any bugs or want to recommend features, send an email to
 ignition.argo@gmail.com
 
-## AUTHORS
+## Authors
 * Jackson Argo
 
 Queu.rb                            2015-02-17                         README.md
