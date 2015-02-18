@@ -96,11 +96,13 @@ Jobs with higher priority and lower TTC are usually sorted above jobs with
 lower priority and higher TTC. The longer a job is left uncompleted, the
 more "urgent" it becomes and it will be sorted above other jobs. If left
 neglected long enough, a job of priority 1 can be sorted above a job of
-priority 10. Once a job is marked as completed, it is sorted with other
+priority 10. Jobs with higher priority will gain urgency faster than jobs
+with lower priority.
+Once a job is marked as completed, it is sorted with other
 completed jobs by the time of completion.
 Uncompleted jobs are sorted by the following formula:
 
-    PRIORITY + 30/TTC + DAYS OLD/(10-PRIORITY)
+    PRIORITY + 30/TTC + DAYS OLD/(11-PRIORITY)
 
 ## Examples
 
