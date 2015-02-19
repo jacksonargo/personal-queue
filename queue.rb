@@ -7,27 +7,58 @@ require 'yaml'
 ## Calculate the urgency of a job
 def job_urgency(job)
     # Start with the user set priority
-    points = job[1]["priority"]
+    points = job["priority"]
     # Add in time to completion. Lower is better.
-    points += 30.0/job[1]["ttc"]
+    points += 30.0/job["ttc"]
     # Calculate the age multiplier
-    age_rate = 1.0/(11 - job[1]["priority"])
+    age_rate = 1.0/(11 - job["priority"])
     # Add in the priority due to age. Older is better.
-    points += age_rate * (Time.now - job[1]["added"])/60/60/24
+    points += age_rate * (Time.now - job["added"])/60/60/24
     return points
 end
 
 ## Print out a job entry
 def print_job(job)
     printf "Name: %s\n", job[0]
-    printf "    Summary:   %s\n", job[1]["summary"]
-    printf "    Priority:  %i\n", job[1]["priority"]
-    printf "    TTC:       %i min\n", job[1]["ttc"]
-    printf "    Added:     %s\n", job[1]["added"].to_s
+    printf "\tSummary:   %s\n", job[1]["summary"]
+    printf "\tPriority:  %i\n", job[1]["priority"]
+    printf "\tTTC:       %i min\n", job[1]["ttc"]
+    if job[1]["parent"] != nil
+        printf "\tParent:    %s\n", job[1]["parent"]
+    end
+    if job[1]["children"] != nil
+        printf "\tChildren:\n"
+        job[1]["children"].each do |n|
+            printf "\t\t%s\n", n
+        end
+    end
+    printf "\tAdded:     %s\n", job[1]["added"].to_s
     if job[1]["completed"] != nil
-        printf "    Completed: %s\n", job[1]["completed"].to_s
+        printf "\tCompleted: %s\n", job[1]["completed"].to_s
     end
     puts
+end
+
+## Check if a job is parent of another job
+def check_if_parent(all_jobs, child, parent)
+    #return false if child == nil or parent == nil
+    while child != nil
+        return true if all_jobs[child]["parent"] == parent
+        child = all_jobs[child["parent"]]
+    end
+    return false
+end
+
+## Find the parent's greatest urgency points
+def get_parent_urgency(all_jobs, child)
+    max = job_urgency(all_jobs[child])
+    loop do
+        child = all_jobs[child]["parent"]
+        break if child == nil
+        cur = job_urgency(all_jobs[child])
+        max = max > cur ? max : cur
+    end
+    return max
 end
 
 ## Sort all jobs by priority decreasing.
@@ -42,14 +73,71 @@ def sort_jobs(all_jobs)
             -1
         elsif x[1]["completed"] != nil and y[1]["completed"] == nil
             1
+        # Check if one job is the parent of the other.
+        elsif check_if_parent all_jobs, x[0], y[0]
+            -1
+        elsif check_if_parent all_jobs, y[0], x[0]
+            1
         # For uncomp, higher priority is more urgent, and lower ttc is better
         elsif x[1]["completed"] == nil and y[1]["completed"] == nil
-            job_urgency(y) <=> job_urgency(x)
+            get_parent_urgency(all_jobs, y[0]) <=> get_parent_urgency(all_jobs, x[0])
         # For completed, just sort by date completed.
         else
            y[1]["completed"] <=> x[1]["completed"]
         end
     end
+end
+
+## Update all the job parent/child relationships
+def update_job_dependencies(all_jobs)
+    # First we'll check that each parent node knows the children
+    all_jobs.each_key do |m|
+        parent = all_jobs[m]["parent"]
+        # Check if this job has a parent
+        next if parent == nil
+        # Check if the parent job exists
+        if all_jobs[parent] == nil
+            all_jobs[m]["parent"] = nil
+            next
+        end
+        # Check that the parent has a children array
+        if all_jobs[parent]["children"] == nil
+            all_jobs[parent]["children"] = []
+        end
+        # Add the job to the array
+        all_jobs[parent]["children"] << m
+    end
+    # Now we'll check that each parent's children are still it's children
+    all_jobs.each_key do |m|
+        # Check that the job has children
+        next if all_jobs[m]["children"] == nil
+        # Remove any dupes
+        all_jobs[m]["children"].uniq!
+        # Delete any children who don't have this job as a parent
+        all_jobs[m]["children"].each do |k|
+            # Check if the child exists
+            all_jobs[m]["children"].delete(k) if all_jobs[k] == nil
+            # Check if the child recognizes this parent
+            all_jobs[m]["children"].delete(k) if all_jobs[k]["parent"] != m
+        end
+        # Check if there children left
+        all_jobs[m]["children"] = nil if all_jobs[m]["children"] == []
+    end
+    # Now we have to check for dependency cycles
+    all_jobs.each_key do |m|
+        start = m
+        current = m["parent"]
+        while current != nil
+            if current == start
+                puts "Not updating job list because a dependency cycle has been found."
+                printf "%s -> ... -> %s -> ... -> %s\n", start, current, start
+                exit 1
+            end
+            current = all_jobs[current["parent"]]
+        end
+    end
+    # Finally we are done
+    return all_jobs
 end
 
 ## Print jobs to screen
@@ -76,30 +164,35 @@ end
 
 ## Insert a job into the queue.
 # Either take the job info from options, or probe the user.
-def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
+def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil, parent = nil)
     # Check if we need to print help
     if name == "--help"
-        puts "queue.rb add NAME SUMMARY PRIORITY TTC"
+        puts "queue.rb add NAME SUMMARY PRIORITY TTC PARENT"
         exit
     end
 
-    # Now we'll prompt the user for any info not passed as an argument.
+    ## Now we'll prompt the user for any info not passed as an argument.
+
+    # Name
     while name == nil
         printf "Name: "
         name = STDIN.gets.chomp
     end
     
+    # Summary
     while summary == nil
         printf "Summary: "
         summary = STDIN.gets.chomp
     end
     
+    # Priority
     priority = priority.to_i
     while priority < 1 or priority > 10
         printf "Priority (1-10): "
         priority = STDIN.gets.chomp.to_i
     end
 
+    # Time to Completion
     ttc = ttc.to_i
     while ttc < 1
         printf "Estimated Time (>=1min): "
@@ -115,7 +208,11 @@ def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil)
 
     # Add the job to the list
     all_jobs[name] = {"summary" => summary, "added" => added,
-                         "priority" => priority, "ttc" => ttc }
+        "priority" => priority, "ttc" => ttc, "parent" => parent }
+
+    # Update dependencies
+    all_jobs = update_job_dependencies(all_jobs) if parent != nil
+
     # Write the list
     write_jobs all_jobs
 end
@@ -133,14 +230,26 @@ def del_job(all_jobs, name=nil)
         printf "Name of job to remove: "
         name = STDIN.gets.chomp
     end
+
+    # Check if the job has dependencies
+    if all_jobs[name]["parent"] != nil or all_jons[name]["children"] != nil
+        hasdependencies = true
+    else
+        hasdependencies = false
+    end
+
+    # Delete the job
     all_jobs.delete name
+
+    # Update dependencies if we need
+    all_jobs = update_job_dependencies(all_jobs) if hasdependencies
 
     # Write the list
     write_jobs all_jobs
 end
 
 ## Mark a job as completed or uncompleted
-def mark_job(all_jobs, name, status)
+def mark_job(all_jobs, name, status, query = true)
     if name == "--help"
         puts "queue.rb mark NAME [completed|uncompleted]"
         exit
@@ -152,11 +261,51 @@ def mark_job(all_jobs, name, status)
         name = STDIN.gets.chomp
     end
 
-    # Store the date of completion by default
-    all_jobs[name]["completed"] = Time.now if status != "uncompleted"
-
-    # Remove the date of completion if uncompleted
-    all_jobs[name]["completed"] = nil      if status == "uncompleted"
+    # By default, mark the job and children completed
+    if status != "uncompleted"
+        # Check if this job has children
+        if all_jobs[name]["children"] == nil
+            all_jobs[name]["completed"] = Time.now
+        # Mark all children
+        else
+            ans = ''
+            if query
+                printf "This will mark all child jobs as complete too.\n"
+                printf "Do you want to continue [Y/n]? "
+                ans = STDIN.gets.chomp.downcase
+            else
+                ans = "y"
+            end
+            if ans != "n"
+                # Mark this job
+                all_jobs[name]["completed"] = Time.now
+                # Mark the children
+                all_jobs[name]["children"].each do
+                    |m| mark_job(all_jobs, m, status, false)
+                end
+            end
+        end
+    # Mark the job and parent and incomplete
+    else
+        # Mark this job
+        if all_jobs[name]["parent"] == nil
+            all_jobs[name]["completed"] = nil
+        # Mark parents
+        else
+            ans = ''
+            if query
+                printf "This will mark all parent jobs as incomplete too.\n"
+                printf "Do you want to continue [Y/n]? "
+                ans = STDIN.gets.chomp.downcase
+            else
+                ans = "y"
+            end
+            if ans != "n"
+                all_jobs[name]["completed"] = nil
+                mark_job(all_jobs, all_jobs[name]["parent"], status, false)
+            end
+        end
+    end
 
     # Write the list
     write_jobs all_jobs
@@ -254,7 +403,7 @@ ARGV[0] = "list" if ARGV[0] == nil
 
 case ARGV[0]
 when "add"
-    add_job all_jobs, ARGV[1], ARGV[2], ARGV[3], ARGV[4]
+    add_job all_jobs, ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5]
 when "del"
     del_job all_jobs, ARGV[1]
 when "list"
