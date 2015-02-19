@@ -232,7 +232,7 @@ def del_job(all_jobs, name=nil)
     end
 
     # Check if the job has dependencies
-    if all_jobs[name]["parent"] != nil or all_jons[name]["children"] != nil
+    if all_jobs[name]["parent"] != nil or all_jobs[name]["children"] != nil
         hasdependencies = true
     else
         hasdependencies = false
