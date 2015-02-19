@@ -116,9 +116,12 @@ def update_job_dependencies(all_jobs)
         # Delete any children who don't have this job as a parent
         all_jobs[m]["children"].each do |k|
             # Check if the child exists
-            all_jobs[m]["children"].delete(k) if all_jobs[k] == nil
+            if all_jobs[k] == nil
+                all_jobs[m]["children"].delete(k)
             # Check if the child recognizes this parent
-            all_jobs[m]["children"].delete(k) if all_jobs[k]["parent"] != m
+            elsif all_jobs[k]["parent"] != m
+                all_jobs[m]["children"].delete(k)
+            end
         end
         # Check if there children left
         all_jobs[m]["children"] = nil if all_jobs[m]["children"] == []
