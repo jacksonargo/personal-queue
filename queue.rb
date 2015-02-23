@@ -144,9 +144,9 @@ def update_job_dependencies(all_jobs)
 end
 
 ## Print jobs to screen
-def list_jobs(all_jobs, list = nil)
+def list_jobs(all_jobs, opts = nil, list = nil)
     if list == "--help"
-        puts "queue.rb list [current|completed|all]"
+        puts "queue.rb list [-v] [current|completed|all]"
         exit
     end
 
@@ -155,10 +155,21 @@ def list_jobs(all_jobs, list = nil)
         exit
     end
 
+    # Check for options
+    if list == nil and opts != '-v'
+        list = opts
+        opts = nil
+    end
+
+    # Sort the jobs
+    sorted = sort_jobs(all_jobs)
+    sorted = sorted.reverse if opts == '-v'
+
     # Set the default list to print
     list = "current" if list == nil
+
     # Print the list of jobs
-    sort_jobs(all_jobs).each do |a|
+    sorted.each do |a|
         print_job a if list == "all"
         print_job a if list == "completed" and a[1]["completed"] != nil
         print_job a if list == "current"   and a[1]["completed"] == nil
@@ -410,7 +421,7 @@ when "add"
 when "del"
     del_job all_jobs, ARGV[1]
 when "list"
-    list_jobs all_jobs, ARGV[1]
+    list_jobs all_jobs, ARGV[1], ARGV[2]
 when "pick"
     pick_job all_jobs, ARGV[1]
 when "mark"
