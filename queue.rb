@@ -4,6 +4,13 @@ require 'yaml'
 
 ## Functions
 
+## Write jobs to file
+def write_jobs (all_jobs)
+    f = File.open($jobs_file, "w")
+    f.write all_jobs.to_yaml
+    f.close
+end
+
 ## Calculate the urgency of a job
 def job_urgency(job)
     # Start with the user set priority
@@ -33,6 +40,9 @@ def print_job(job)
         end
     end
     printf "\tAdded:     %s\n", job[1]["added"].to_s
+    if job[1]["hold"] != nil
+        printf "\tHeld:      %s\n", job[1]["hold"].to_s
+    end
     if job[1]["completed"] != nil
         printf "\tCompleted: %s\n", job[1]["completed"].to_s
     end
@@ -170,9 +180,19 @@ def list_jobs(all_jobs, opts = nil, list = nil)
 
     # Print the list of jobs
     sorted.each do |a|
-        print_job a if list == "all"
-        print_job a if list == "completed" and a[1]["completed"] != nil
-        print_job a if list == "current"   and a[1]["completed"] == nil
+        if list == "all"
+            print_job a
+            next
+        elsif a[1]["completed"] != nil
+            print_job a if list == "completed"
+            next
+        elsif a[1]["hold"] != nil
+            print_job a if list == "held"
+            next
+        else
+            print_job a if list == "current"
+            next
+        end
     end
 end
 
@@ -262,10 +282,32 @@ def del_job(all_jobs, name=nil)
     write_jobs all_jobs
 end
 
-## Mark a job as completed or uncompleted
+## Put a job on hold
+def hold_job(all_jobs, name, status = nil)
+    if name == "--help"
+        puts "queue.rb hold NAME [release]"
+        exit
+    end
+    if all_jobs[name] == nil
+        printf "Sorry, job %s doesn't exist.\n", name
+        exit 1
+    end
+    status = "hold" if status == nil
+    if status != "release"
+        all_jobs[name]["hold"] = Time.now
+    else
+        all_jobs[name]["hold"] = nil
+    end
+
+    # Write the list
+    write_jobs all_jobs
+end
+
+
+## Mark a job as completed or incomplete
 def mark_job(all_jobs, name, status, query = true)
     if name == "--help"
-        puts "queue.rb mark NAME [completed|uncompleted]"
+        puts "queue.rb mark NAME [incomplete]"
         exit
     end
 
@@ -276,7 +318,7 @@ def mark_job(all_jobs, name, status, query = true)
     end
 
     # By default, mark the job and children completed
-    if status != "uncompleted"
+    if status != "incomplete"
         # Check if this job has children
         if all_jobs[name]["children"] == nil
             all_jobs[name]["completed"] = Time.now
@@ -377,13 +419,6 @@ def mod_job(all_jobs, name, attribute, value)
         modded["ttc"]
 end
 
-## Write jobs to file
-def write_jobs (all_jobs)
-    f = File.open($jobs_file, "w")
-    f.write all_jobs.to_yaml
-    f.close
-end
-
 ##
 ## Main
 ##
@@ -422,12 +457,16 @@ when "del"
     del_job all_jobs, ARGV[1]
 when "list"
     list_jobs all_jobs, ARGV[1], ARGV[2]
+when "-v"
+    list_jobs all_jobs, "-v"
 when "pick"
     pick_job all_jobs, ARGV[1]
 when "mark"
     mark_job all_jobs, ARGV[1], ARGV[2]
 when "mod"
     mod_job all_jobs, ARGV[1], ARGV[2], ARGV[3]
+when "hold"
+    hold_job all_jobs, ARGV[1], ARGV[2]
 else
     puts "queue.rb [add|del|mod|mark|list|pick] [OPTIONS]..."
 end
