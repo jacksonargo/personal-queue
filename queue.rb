@@ -20,7 +20,12 @@ def job_urgency(job)
     # Calculate the age multiplier
     age_rate = 1.0/(11 - job["priority"])
     # Add in the priority due to age. Older is better.
-    points += age_rate * (Time.now - job["added"])/60/60/24
+    # If the job was held, then we use the unhold date.
+    if job["unhold"] != nil
+        points += age_rate * (Time.now - job["unhold"])/60/60/24
+    else
+        points += age_rate * (Time.now - job["added"])/60/60/24
+    end
     return points
 end
 
@@ -42,6 +47,9 @@ def print_job(job)
     printf "\tAdded:     %s\n", job[1]["added"].to_s
     if job[1]["hold"] != nil
         printf "\tHeld:      %s\n", job[1]["hold"].to_s
+    end
+    if job[1]["unhold"] != nil
+        printf "\tUnheld:    %s\n", job[1]["unhold"].to_s
     end
     if job[1]["completed"] != nil
         printf "\tCompleted: %s\n", job[1]["completed"].to_s
@@ -186,7 +194,7 @@ def list_jobs(all_jobs, opts = nil, list = nil)
         elsif a[1]["completed"] != nil
             print_job a if list == "completed"
             next
-        elsif a[1]["hold"] != nil
+        elsif a[1]["hold"] != nil and a[1]["unhold"] == nil
             print_job a if list == "held"
             next
         else
@@ -295,8 +303,9 @@ def hold_job(all_jobs, name, status = nil)
     status = "hold" if status == nil
     if status != "release"
         all_jobs[name]["hold"] = Time.now
+        all_jobs[name]["unhold"] = nil
     else
-        all_jobs[name]["hold"] = nil
+        all_jobs[name]["unhold"] = Time.now
     end
 
     # Write the list
@@ -467,6 +476,8 @@ when "mod"
     mod_job all_jobs, ARGV[1], ARGV[2], ARGV[3]
 when "hold"
     hold_job all_jobs, ARGV[1], ARGV[2]
+when "unhold"
+    hold_job all_jobs, ARGV[1], "release"
 else
     puts "queue.rb [add|del|mod|mark|list|pick] [OPTIONS]..."
 end
