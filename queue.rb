@@ -170,7 +170,7 @@ end
 ## Print jobs to screen
 def list_jobs(all_jobs, opts = nil, list = nil)
     if list == "--help"
-        puts "queue.rb list [-v] [current|completed|scheduled|all]"
+        print "Usage: %s list [-v] [current|completed|scheduled|all]\n", $0
         exit
     end
 
@@ -213,7 +213,7 @@ end
 def add_job(all_jobs, name = nil, summary = nil, priority = nil, ttc = nil, parent = nil)
     # Check if we need to print help
     if name == "--help"
-        puts "queue.rb add NAME SUMMARY PRIORITY TTC PARENT"
+        printf "Usage: %s add NAME SUMMARY PRIORITY TTC PARENT\n", $0
         exit
     end
 
@@ -267,7 +267,7 @@ end
 def del_job(all_jobs, name=nil)
     # Check if we need to print help
     if name == "--help"
-        puts "queue.rb del NAME"
+        printf "Usage: %s del NAME\n", $0
         exit
     end
 
@@ -297,7 +297,7 @@ end
 ## Put a job on hold
 def hold_job(all_jobs, name, status = nil)
     if name == "--help"
-        puts "queue.rb hold NAME [release]"
+        puts "Usage: %s hold NAME [release]\n", $0
         exit
     end
     if all_jobs[name] == nil
@@ -320,7 +320,7 @@ end
 ## Mark a job as completed or incomplete
 def mark_job(all_jobs, name, status, query = true)
     if name == "--help"
-        puts "queue.rb mark NAME [incomplete]"
+        printf "%s mark NAME [incomplete]\n", $0
         exit
     end
 
@@ -401,7 +401,7 @@ def pick_job(all_jobs, algorithm = nil)
         # Choose a completely random job
         print_job sorted[rand(sorted.length)]
     else 
-        puts "queue.rb pick [TOP|HIGH|RAND]"
+        printf "%s pick [TOP|HIGH|RAND]\n", $0
         exit
     end
 end
@@ -510,5 +510,5 @@ when "unhold"
 when "schedule"
     schedule_job all_jobs, ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6]
 else
-    puts "queue.rb [add|del|mod|mark|list|pick|hold|unhold|schedule] [OPTIONS]..."
+    printf "%s [add|del|mod|mark|list|pick|hold|unhold|schedule] [OPTIONS]...\n", $0
 end
