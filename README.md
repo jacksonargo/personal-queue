@@ -10,7 +10,11 @@ Personal Queue
     * [mod](#mod)
     * [mark](#mark)
     * [list](#list)
-    * [pick](#pick)
+    * [mod](#mod)
+    * [hold](#hold)
+    * [unhold](#unhold)
+    * [schedule](#schedule)
+    * 
 4. [Sorting](#sorting)
 5. [Bugs](#bugs)
 6. [Authors](#authors)
@@ -20,9 +24,11 @@ Personal Queue
     queue.rb add [NAME] [SUMMARY] [PRIORITY] [TIME TO COMPLETION]
     queue.rb del [NAME]
     queue.rb mod [NAME] [ATTRIBUTE] [VALUE]
-    queue.rb mark [NAME] [STATUS]
-    queue.rb list [current|completed|all]
-    queue.rb pick [urgent|random]
+    queue.rb mark [NAME] [completed]
+    queue.rb list [current|completed|held|scheduled|all]
+    queue.rb hold NAME [release]
+    queue.rb unhold NAME
+    queue.rb schedule NAME [YEAR] [MONTH] [DAY] [HOUR] [MINUTE]
 
 ## Description
 
@@ -82,12 +88,27 @@ sort and list only the uncompleted jobs. To list only the completed
 jobs use 'queue.rb list completed', and to list all jobs use
 'queue.rb list all'.
 
-### pick
+### hold
 
-Prints only one job from the queue. If no other argument is given, then
-the most urgent job is printed. To pick a random but urgent job use
-'queue.rb pick urgent', and to pick a completely random job use
-'queue.rb pick random'.
+Puts the job NAME on hold and keeps it from being listed with the current jobs.
+If "release" is given after NAME, the job will no longer be on hold. Released
+jobs printed in the current job list, but sorted by the date they were released
+rather than the date they were added.
+
+### unhold
+
+Removes a hold on the job NAME. Equivalent to 'queue.rb hold NAME release'.
+
+### schedule
+
+This lets you schedule when a job should start or should have started. Jobs scheduled
+to start in the future are not listed with the current jobs, but can be seen with
+'queue.rb list scheduled'. Scheduled jobs are sorted by the date they are scheduled to
+start and not by the date added. Scheduling a job in the past allows you to retain the date
+added but also give the job a higher priority due to age.
+The job NAME must be added before a schedule can be added.
+YEAR, MONTH, DAY, HOUR, and MINUTE are optional and will be replaced with the current
+system date and time if ommitted.
 
 ## Sorting
 
@@ -116,4 +137,4 @@ ignition.argo@gmail.com
 ## Authors
 * Jackson Argo
 
-Queue.rb                            2015-02-17                         README.md
+Queue.rb                            2015-03-09                         README.md
