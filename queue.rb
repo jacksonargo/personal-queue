@@ -21,8 +21,11 @@ def job_urgency(job)
     age_rate = 1.0/(11 - job["priority"])
     # Add in the priority due to age. Older is better.
     # If the job was held, then we use the unhold date.
+    # If the job has been scheduled, we use that date.
     if job["unhold"] != nil
         points += age_rate * (Time.now - job["unhold"])/60/60/24
+    elsif job["schedule"] != nil
+        points += age_rate * (Time.now - job["schedule"])/60/60/24
     else
         points += age_rate * (Time.now - job["added"])/60/60/24
     end
@@ -45,6 +48,9 @@ def print_job(job)
         end
     end
     printf "\tAdded:     %s\n", job[1]["added"].to_s
+    if job[1]["schedule"] != nil
+        printf "\tStart:     %s\n", job[1]["schedule"].to_s
+    end
     if job[1]["hold"] != nil
         printf "\tHeld:      %s\n", job[1]["hold"].to_s
     end
@@ -164,7 +170,7 @@ end
 ## Print jobs to screen
 def list_jobs(all_jobs, opts = nil, list = nil)
     if list == "--help"
-        puts "queue.rb list [-v] [current|completed|all]"
+        puts "queue.rb list [-v] [current|completed|scheduled|all]"
         exit
     end
 
@@ -190,16 +196,14 @@ def list_jobs(all_jobs, opts = nil, list = nil)
     sorted.each do |a|
         if list == "all"
             print_job a
-            next
         elsif a[1]["completed"] != nil
             print_job a if list == "completed"
-            next
         elsif a[1]["hold"] != nil and a[1]["unhold"] == nil
             print_job a if list == "held"
-            next
+        elsif a[1]["schedule"] != nil and a[1]["schedule"] > Time.now
+            print_job a if list == "scheduled"
         else
             print_job a if list == "current"
-            next
         end
     end
 end
@@ -428,6 +432,31 @@ def mod_job(all_jobs, name, attribute, value)
         modded["ttc"]
 end
 
+## Schedule a job
+def schedule_job(all_jobs, name, year, month, day, hour, minute)
+    # Check for help
+    if name == "--help" or name == "-h"
+        printf "Usage: %s date NAME [YEAR] [MONTH] [DAY] [HOUR] [MINUTE]\n", $0
+        printf "List date and time numerically. Anything omitted will be "
+        printf "replaced with system time.\n"
+        exit 0
+    end
+    # Check that the job exists
+    if all_jobs[name] == nil
+        printf "The job %s doesn't exist. Please create it first.\n", name
+        exit 1
+    end
+    # Set the date for the job
+    year = Time.now.year if year == nil
+    month = Time.now.month if month == nil
+    day = Time.now.day if day == nil
+    hour = Time.now.hour if hour == nil
+    minute = Time.now.min if minute == nil
+    all_jobs[name]["schedule"] = Time.new(year, month, day, hour, minute)
+    write_jobs all_jobs
+end
+
+
 ##
 ## Main
 ##
@@ -478,6 +507,8 @@ when "hold"
     hold_job all_jobs, ARGV[1], ARGV[2]
 when "unhold"
     hold_job all_jobs, ARGV[1], "release"
+when "schedule"
+    schedule_job all_jobs, ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6]
 else
-    puts "queue.rb [add|del|mod|mark|list|pick] [OPTIONS]..."
+    puts "queue.rb [add|del|mod|mark|list|pick|hold|unhold|schedule] [OPTIONS]..."
 end
