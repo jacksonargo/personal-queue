@@ -2,6 +2,100 @@ require 'minitest/autorun'
 require 'tmpdir'
 require_relative 'job_queue'
 
+class TestJob < Minitest::Test
+  def test_initialize_with_defaults
+    job = Job.new(summary: "test", priority: 5, ttc: 30)
+
+    assert_equal "test", job.summary
+    assert_equal 5, job.priority
+    assert_equal 30, job.ttc
+    assert_instance_of Time, job.added
+    assert_nil job.completed
+    assert_nil job.hold
+    assert_nil job.unhold
+    assert_nil job.schedule
+    assert_nil job.parent
+    assert_nil job.children
+  end
+
+  def test_initialize_with_all_fields
+    now = Time.now
+    job = Job.new(
+      summary: "full", priority: 8, ttc: 60,
+      added: now, completed: now, hold: now, unhold: now,
+      schedule: now, parent: "p", children: ["c1", "c2"]
+    )
+
+    assert_equal now, job.added
+    assert_equal now, job.completed
+    assert_equal "p", job.parent
+    assert_equal ["c1", "c2"], job.children
+  end
+
+  def test_bracket_read
+    job = Job.new(summary: "test", priority: 5, ttc: 30)
+
+    assert_equal "test", job["summary"]
+    assert_equal 5, job["priority"]
+    assert_nil job["nonexistent"]
+  end
+
+  def test_bracket_write
+    job = Job.new(summary: "test", priority: 5, ttc: 30)
+    job["priority"] = 9
+
+    assert_equal 9, job.priority
+  end
+
+  def test_key?
+    job = Job.new(summary: "test", priority: 5, ttc: 30)
+
+    assert job.key?("summary")
+    assert job.key?("priority")
+    assert job.key?("completed")
+    refute job.key?("nonexistent")
+  end
+
+  def test_to_h
+    now = Time.now
+    job = Job.new(summary: "test", priority: 5, ttc: 30, added: now)
+    h = job.to_h
+
+    assert_instance_of Hash, h
+    assert_equal "test", h["summary"]
+    assert_equal 5, h["priority"]
+    assert_equal 30, h["ttc"]
+    assert_equal now, h["added"]
+    assert_nil h["completed"]
+  end
+
+  def test_from_hash
+    now = Time.now
+    h = {
+      "summary" => "rebuilt", "priority" => 7, "ttc" => 45,
+      "added" => now, "completed" => nil, "hold" => nil,
+      "unhold" => nil, "schedule" => nil, "parent" => "p1",
+      "children" => ["c1"]
+    }
+    job = Job.from_hash(h)
+
+    assert_equal "rebuilt", job.summary
+    assert_equal 7, job.priority
+    assert_equal "p1", job.parent
+    assert_equal ["c1"], job.children
+  end
+
+  def test_roundtrip_to_h_from_hash
+    original = Job.new(summary: "roundtrip", priority: 3, ttc: 15)
+    restored = Job.from_hash(original.to_h)
+
+    assert_equal original.summary, restored.summary
+    assert_equal original.priority, restored.priority
+    assert_equal original.ttc, restored.ttc
+    assert_equal original.added, restored.added
+  end
+end
+
 class TestJobQueue < Minitest::Test
   def setup
     @queue = JobQueue.new
@@ -9,7 +103,7 @@ class TestJobQueue < Minitest::Test
 
   def make_job(name, priority: 5, ttc: 30, summary: "test", parent: nil, added: nil)
     @queue.add_job(name, summary: summary, priority: priority, ttc: ttc, parent: parent)
-    @queue.jobs[name]["added"] = added if added
+    @queue.jobs[name].added = added if added
     @queue.jobs[name]
   end
 
@@ -24,22 +118,28 @@ class TestJobQueue < Minitest::Test
   def test_add_job_basic
     @queue.add_job("task1", summary: "Do something", priority: 5, ttc: 30)
 
-    assert_equal "Do something", @queue.jobs["task1"]["summary"]
-    assert_equal 5, @queue.jobs["task1"]["priority"]
-    assert_equal 30, @queue.jobs["task1"]["ttc"]
-    assert_instance_of Time, @queue.jobs["task1"]["added"]
-    assert_nil @queue.jobs["task1"]["completed"]
+    assert_equal "Do something", @queue.jobs["task1"].summary
+    assert_equal 5, @queue.jobs["task1"].priority
+    assert_equal 30, @queue.jobs["task1"].ttc
+    assert_instance_of Time, @queue.jobs["task1"].added
+    assert_nil @queue.jobs["task1"].completed
+  end
+
+  def test_add_job_returns_job_object
+    result = @queue.add_job("task1", summary: "Do something", priority: 5, ttc: 30)
+
+    assert_instance_of Job, result
   end
 
   def test_add_job_preserves_added_date_on_update
     @queue.add_job("task1", summary: "v1", priority: 3, ttc: 10)
-    original_added = @queue.jobs["task1"]["added"]
+    original_added = @queue.jobs["task1"].added
 
     @queue.add_job("task1", summary: "v2", priority: 7, ttc: 20)
 
-    assert_equal original_added, @queue.jobs["task1"]["added"]
-    assert_equal "v2", @queue.jobs["task1"]["summary"]
-    assert_equal 7, @queue.jobs["task1"]["priority"]
+    assert_equal original_added, @queue.jobs["task1"].added
+    assert_equal "v2", @queue.jobs["task1"].summary
+    assert_equal 7, @queue.jobs["task1"].priority
   end
 
   def test_add_job_validates_priority
@@ -75,7 +175,7 @@ class TestJobQueue < Minitest::Test
 
     @queue.delete_job("parent")
 
-    assert_nil @queue.jobs["child"]["parent"]
+    assert_nil @queue.jobs["child"].parent
   end
 
   # --- job_urgency ---
@@ -103,8 +203,8 @@ class TestJobQueue < Minitest::Test
 
   def test_urgency_uses_unhold_date_when_set
     make_job("task1", priority: 5, ttc: 30)
-    @queue.jobs["task1"]["added"] = Time.now - 86400 * 100
-    @queue.jobs["task1"]["unhold"] = Time.now
+    @queue.jobs["task1"].added = Time.now - 86400 * 100
+    @queue.jobs["task1"].unhold = Time.now
 
     # With unhold set to now, age contribution should be near zero
     urgency = @queue.job_urgency("task1")
@@ -131,6 +231,13 @@ class TestJobQueue < Minitest::Test
     sorted = @queue.sort_jobs
     assert_equal "high", sorted[0][0]
     assert_equal "low", sorted[1][0]
+  end
+
+  def test_sort_returns_job_objects
+    make_job("task1")
+
+    sorted = @queue.sort_jobs
+    assert_instance_of Job, sorted[0][1]
   end
 
   # --- ancestor? ---
@@ -164,23 +271,23 @@ class TestJobQueue < Minitest::Test
     make_job("parent")
     make_job("child", parent: "parent")
 
-    assert_includes @queue.jobs["parent"]["children"], "child"
+    assert_includes @queue.jobs["parent"].children, "child"
   end
 
   def test_update_dependencies_clears_orphaned_parent
     make_job("child")
-    @queue.jobs["child"]["parent"] = "nonexistent"
+    @queue.jobs["child"].parent = "nonexistent"
 
     @queue.update_dependencies!
 
-    assert_nil @queue.jobs["child"]["parent"]
+    assert_nil @queue.jobs["child"].parent
   end
 
   def test_update_dependencies_detects_cycle
     make_job("a")
     make_job("b")
-    @queue.jobs["a"]["parent"] = "b"
-    @queue.jobs["b"]["parent"] = "a"
+    @queue.jobs["a"].parent = "b"
+    @queue.jobs["b"].parent = "a"
 
     assert_raises(JobQueue::DependencyCycleError) { @queue.update_dependencies! }
   end
@@ -263,8 +370,8 @@ class TestJobQueue < Minitest::Test
     make_job("task1")
     @queue.hold_job("task1")
 
-    assert_instance_of Time, @queue.jobs["task1"]["hold"]
-    assert_nil @queue.jobs["task1"]["unhold"]
+    assert_instance_of Time, @queue.jobs["task1"].hold
+    assert_nil @queue.jobs["task1"].unhold
   end
 
   def test_unhold_job
@@ -272,7 +379,7 @@ class TestJobQueue < Minitest::Test
     @queue.hold_job("task1")
     @queue.unhold_job("task1")
 
-    assert_instance_of Time, @queue.jobs["task1"]["unhold"]
+    assert_instance_of Time, @queue.jobs["task1"].unhold
   end
 
   def test_hold_nonexistent_raises
@@ -285,7 +392,7 @@ class TestJobQueue < Minitest::Test
     make_job("task1")
     @queue.mark_complete("task1")
 
-    assert_instance_of Time, @queue.jobs["task1"]["completed"]
+    assert_instance_of Time, @queue.jobs["task1"].completed
   end
 
   def test_mark_complete_cascades_to_children
@@ -296,7 +403,7 @@ class TestJobQueue < Minitest::Test
 
     assert_includes marked, "parent"
     assert_includes marked, "child"
-    assert_instance_of Time, @queue.jobs["child"]["completed"]
+    assert_instance_of Time, @queue.jobs["child"].completed
   end
 
   def test_mark_complete_no_cascade
@@ -305,8 +412,8 @@ class TestJobQueue < Minitest::Test
 
     @queue.mark_complete("parent", cascade: false)
 
-    assert_instance_of Time, @queue.jobs["parent"]["completed"]
-    assert_nil @queue.jobs["child"]["completed"]
+    assert_instance_of Time, @queue.jobs["parent"].completed
+    assert_nil @queue.jobs["child"].completed
   end
 
   def test_mark_incomplete
@@ -314,7 +421,7 @@ class TestJobQueue < Minitest::Test
     @queue.mark_complete("task1")
     @queue.mark_incomplete("task1")
 
-    assert_nil @queue.jobs["task1"]["completed"]
+    assert_nil @queue.jobs["task1"].completed
   end
 
   def test_mark_incomplete_cascades_to_parents
@@ -326,7 +433,7 @@ class TestJobQueue < Minitest::Test
 
     assert_includes marked, "child"
     assert_includes marked, "parent"
-    assert_nil @queue.jobs["parent"]["completed"]
+    assert_nil @queue.jobs["parent"].completed
   end
 
   def test_mark_nonexistent_raises
@@ -342,6 +449,7 @@ class TestJobQueue < Minitest::Test
 
     result = @queue.pick_job("top")
     assert_equal "high", result[0]
+    assert_instance_of Job, result[1]
   end
 
   def test_pick_from_empty_queue
@@ -370,7 +478,7 @@ class TestJobQueue < Minitest::Test
     make_job("task1", priority: 3)
     @queue.modify_job("task1", "priority", 8)
 
-    assert_equal 8, @queue.jobs["task1"]["priority"]
+    assert_equal 8, @queue.jobs["task1"].priority
   end
 
   def test_modify_nonexistent_raises
@@ -388,7 +496,7 @@ class TestJobQueue < Minitest::Test
     make_job("task1")
     @queue.schedule_job("task1", year: 2099, month: 6, day: 15, hour: 10, minute: 30)
 
-    assert_equal Time.new(2099, 6, 15, 10, 30), @queue.jobs["task1"]["schedule"]
+    assert_equal Time.new(2099, 6, 15, 10, 30), @queue.jobs["task1"].schedule
   end
 
   def test_schedule_defaults_to_current_time_components
@@ -396,7 +504,7 @@ class TestJobQueue < Minitest::Test
     now = Time.now
     @queue.schedule_job("task1", year: 2099)
 
-    sched = @queue.jobs["task1"]["schedule"]
+    sched = @queue.jobs["task1"].schedule
     assert_equal 2099, sched.year
     assert_equal now.month, sched.month
   end
@@ -416,9 +524,10 @@ class TestJobQueue < Minitest::Test
 
       loaded = JobQueue.load_from_file(path)
 
-      assert_equal "Test save", loaded.jobs["task1"]["summary"]
-      assert_equal 5, loaded.jobs["task1"]["priority"]
-      assert_equal 30, loaded.jobs["task1"]["ttc"]
+      assert_instance_of Job, loaded.jobs["task1"]
+      assert_equal "Test save", loaded.jobs["task1"].summary
+      assert_equal 5, loaded.jobs["task1"].priority
+      assert_equal 30, loaded.jobs["task1"].ttc
     end
   end
 

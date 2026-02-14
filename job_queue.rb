@@ -1,5 +1,59 @@
 require 'yaml'
 
+class Job
+  ATTRIBUTES = %w[summary priority ttc added completed hold unhold schedule parent children].freeze
+
+  attr_accessor :summary, :priority, :ttc, :added, :completed,
+                :hold, :unhold, :schedule, :parent, :children
+
+  def initialize(summary:, priority:, ttc:, added: nil, completed: nil,
+                 hold: nil, unhold: nil, schedule: nil, parent: nil, children: nil)
+    @summary = summary
+    @priority = priority
+    @ttc = ttc
+    @added = added || Time.now
+    @completed = completed
+    @hold = hold
+    @unhold = unhold
+    @schedule = schedule
+    @parent = parent
+    @children = children
+  end
+
+  def [](attr)
+    send(attr) if ATTRIBUTES.include?(attr)
+  end
+
+  def []=(attr, value)
+    send("#{attr}=", value) if ATTRIBUTES.include?(attr)
+  end
+
+  def key?(attr)
+    ATTRIBUTES.include?(attr)
+  end
+
+  def to_h
+    h = {}
+    ATTRIBUTES.each { |a| h[a] = send(a) }
+    h
+  end
+
+  def self.from_hash(hash)
+    new(
+      summary: hash["summary"],
+      priority: hash["priority"],
+      ttc: hash["ttc"],
+      added: hash["added"],
+      completed: hash["completed"],
+      hold: hash["hold"],
+      unhold: hash["unhold"],
+      schedule: hash["schedule"],
+      parent: hash["parent"],
+      children: hash["children"]
+    )
+  end
+end
+
 # JobQueue encapsulates all business logic for managing a prioritized task queue.
 # It operates on an in-memory hash and never does file I/O, STDIN reads, or exits,
 # making it fully testable in isolation.
@@ -12,11 +66,17 @@ class JobQueue
 
   def self.load_from_file(path)
     data = YAML.safe_load(File.read(path), permitted_classes: [Time])
-    new(data.is_a?(Hash) ? data : {})
+    jobs = {}
+    if data.is_a?(Hash)
+      data.each { |name, attrs| jobs[name] = Job.from_hash(attrs) }
+    end
+    new(jobs)
   end
 
   def save_to_file(path)
-    File.write(path, @jobs.to_yaml)
+    data = {}
+    @jobs.each { |name, job| data[name] = job.to_h }
+    File.write(path, data.to_yaml)
   end
 
   # Calculate the urgency score for a job.
@@ -25,17 +85,17 @@ class JobQueue
     job = @jobs[name]
     return 0 unless job
 
-    points = job["priority"]
-    points += 30.0 / job["ttc"]
+    points = job.priority
+    points += 30.0 / job.ttc
 
-    age_rate = 1.0 / (11 - job["priority"])
+    age_rate = 1.0 / (11 - job.priority)
 
-    if job["unhold"]
-      points += age_rate * (Time.now - job["unhold"]) / 60 / 60 / 24
-    elsif job["schedule"]
-      points += age_rate * (Time.now - job["schedule"]) / 60 / 60 / 24
+    if job.unhold
+      points += age_rate * (Time.now - job.unhold) / 60 / 60 / 24
+    elsif job.schedule
+      points += age_rate * (Time.now - job.schedule) / 60 / 60 / 24
     else
-      points += age_rate * (Time.now - job["added"]) / 60 / 60 / 24
+      points += age_rate * (Time.now - job.added) / 60 / 60 / 24
     end
 
     points
@@ -45,8 +105,8 @@ class JobQueue
   def ancestor?(child, parent)
     current = child
     while current
-      return true if @jobs[current]["parent"] == parent
-      current = @jobs[current]["parent"]
+      return true if @jobs[current].parent == parent
+      current = @jobs[current].parent
     end
     false
   end
@@ -56,7 +116,7 @@ class JobQueue
     max = job_urgency(name)
     current = name
     loop do
-      current = @jobs[current]["parent"]
+      current = @jobs[current].parent
       break unless current
       cur = job_urgency(current)
       max = cur if cur > max
@@ -64,21 +124,21 @@ class JobQueue
     max
   end
 
-  # Sort all jobs by urgency (descending). Returns an array of [name, attrs] pairs.
+  # Sort all jobs by urgency (descending). Returns an array of [name, Job] pairs.
   def sort_jobs
     @jobs.sort do |x, y|
-      if x[1]["completed"].nil? && !y[1]["completed"].nil?
+      if x[1].completed.nil? && !y[1].completed.nil?
         -1
-      elsif !x[1]["completed"].nil? && y[1]["completed"].nil?
+      elsif !x[1].completed.nil? && y[1].completed.nil?
         1
       elsif ancestor?(x[0], y[0])
         -1
       elsif ancestor?(y[0], x[0])
         1
-      elsif x[1]["completed"].nil? && y[1]["completed"].nil?
+      elsif x[1].completed.nil? && y[1].completed.nil?
         max_parent_urgency(y[0]) <=> max_parent_urgency(x[0])
       else
-        y[1]["completed"] <=> x[1]["completed"]
+        y[1].completed <=> x[1].completed
       end
     end
   end
@@ -88,82 +148,82 @@ class JobQueue
   def update_dependencies!
     # Rebuild children arrays from parent references
     @jobs.each_key do |name|
-      parent = @jobs[name]["parent"]
+      parent = @jobs[name].parent
       next unless parent
 
       if @jobs[parent].nil?
-        @jobs[name]["parent"] = nil
+        @jobs[name].parent = nil
         next
       end
 
-      @jobs[parent]["children"] ||= []
-      @jobs[parent]["children"] << name
+      @jobs[parent].children ||= []
+      @jobs[parent].children << name
     end
 
     # Clean up children arrays
     @jobs.each_key do |name|
-      next unless @jobs[name]["children"]
+      next unless @jobs[name].children
 
-      @jobs[name]["children"].uniq!
+      @jobs[name].children.uniq!
 
-      @jobs[name]["children"].reject! do |child|
-        @jobs[child].nil? || @jobs[child]["parent"] != name
+      @jobs[name].children.reject! do |child|
+        @jobs[child].nil? || @jobs[child].parent != name
       end
 
-      @jobs[name]["children"] = nil if @jobs[name]["children"].empty?
+      @jobs[name].children = nil if @jobs[name].children.empty?
     end
 
     # Check for dependency cycles
     @jobs.each_key do |name|
-      current = @jobs[name]["parent"]
+      current = @jobs[name].parent
       while current
         if current == name
           raise DependencyCycleError,
             "Dependency cycle detected: #{name} -> ... -> #{current} -> ... -> #{name}"
         end
-        current = @jobs[current]["parent"]
+        current = @jobs[current].parent
       end
     end
   end
 
-  # Filter and sort jobs by status. Returns array of [name, attrs] pairs.
+  # Filter and sort jobs by status. Returns array of [name, Job] pairs.
   def list_jobs(filter = "current", reverse: false)
     sorted = sort_jobs
     sorted = sorted.reverse if reverse
 
-    sorted.select do |_name, attrs|
+    sorted.select do |_name, job|
       case filter
       when "all"
         true
       when "completed"
-        !attrs["completed"].nil?
+        !job.completed.nil?
       when "held"
-        !attrs["hold"].nil? && attrs["unhold"].nil?
+        !job.hold.nil? && job.unhold.nil?
       when "scheduled"
-        attrs["schedule"] && attrs["schedule"] > Time.now
+        job.schedule && job.schedule > Time.now
       else # "current"
-        attrs["completed"].nil? &&
-          (attrs["hold"].nil? || !attrs["unhold"].nil?) &&
-          (attrs["schedule"].nil? || attrs["schedule"] <= Time.now)
+        job.completed.nil? &&
+          (job.hold.nil? || !job.unhold.nil?) &&
+          (job.schedule.nil? || job.schedule <= Time.now)
       end
     end
   end
 
-  # Add or update a job. Returns the job hash.
+  # Add or update a job. Returns the Job.
   def add_job(name, summary:, priority:, ttc:, parent: nil)
     raise ArgumentError, "Name is required" if name.nil? || name.empty?
     raise ArgumentError, "Priority must be between 1 and 10" unless (1..10).include?(priority)
     raise ArgumentError, "TTC must be >= 1" unless ttc >= 1
 
-    added = @jobs.dig(name, "added") || Time.now
+    added = @jobs[name]&.added || Time.now
 
-    @jobs[name] = {
-      "summary" => summary,
-      "added" => added,
-      "priority" => priority,
-      "ttc" => ttc,
-      "parent" => parent
-    }
+    @jobs[name] = Job.new(
+      summary: summary,
+      priority: priority,
+      ttc: ttc,
+      added: added,
+      parent: parent
+    )
 
     update_dependencies! if parent
     @jobs[name]
@@ -173,7 +233,7 @@ class JobQueue
   def delete_job(name)
     raise ArgumentError, "Job '#{name}' does not exist" unless @jobs[name]
 
-    has_deps = !@jobs[name]["parent"].nil? || !@jobs[name]["children"].nil?
+    has_deps = !@jobs[name].parent.nil? || !@jobs[name].children.nil?
     @jobs.delete(name)
     update_dependencies! if has_deps
   end
@@ -182,15 +242,15 @@ class JobQueue
   def hold_job(name)
     raise ArgumentError, "Job '#{name}' does not exist" unless @jobs[name]
 
-    @jobs[name]["hold"] = Time.now
-    @jobs[name]["unhold"] = nil
+    @jobs[name].hold = Time.now
+    @jobs[name].unhold = nil
   end
 
   # Release a job from hold.
   def unhold_job(name)
     raise ArgumentError, "Job '#{name}' does not exist" unless @jobs[name]
 
-    @jobs[name]["unhold"] = Time.now
+    @jobs[name].unhold = Time.now
   end
 
   # Mark a job as completed, optionally cascading to children.
@@ -199,10 +259,10 @@ class JobQueue
     raise ArgumentError, "Job '#{name}' does not exist" unless @jobs[name]
 
     marked = [name]
-    @jobs[name]["completed"] = Time.now
+    @jobs[name].completed = Time.now
 
-    if cascade && @jobs[name]["children"]
-      @jobs[name]["children"].each do |child|
+    if cascade && @jobs[name].children
+      @jobs[name].children.each do |child|
         marked.concat(mark_complete(child, cascade: true))
       end
     end
@@ -216,16 +276,16 @@ class JobQueue
     raise ArgumentError, "Job '#{name}' does not exist" unless @jobs[name]
 
     marked = [name]
-    @jobs[name]["completed"] = nil
+    @jobs[name].completed = nil
 
-    if cascade && @jobs[name]["parent"]
-      marked.concat(mark_incomplete(@jobs[name]["parent"], cascade: true))
+    if cascade && @jobs[name].parent
+      marked.concat(mark_incomplete(@jobs[name].parent, cascade: true))
     end
 
     marked
   end
 
-  # Pick a job using the given algorithm. Returns a [name, attrs] pair.
+  # Pick a job using the given algorithm. Returns a [name, Job] pair.
   def pick_job(algorithm = "top")
     sorted = sort_jobs
     return nil if sorted.empty?
@@ -252,10 +312,10 @@ class JobQueue
 
     if ["priority", "ttc", "summary"].include?(attribute)
       add_job(name,
-        summary: @jobs[name]["summary"],
-        priority: @jobs[name]["priority"],
-        ttc: @jobs[name]["ttc"],
-        parent: @jobs[name]["parent"])
+        summary: @jobs[name].summary,
+        priority: @jobs[name].priority,
+        ttc: @jobs[name].ttc,
+        parent: @jobs[name].parent)
     end
   end
 
@@ -264,7 +324,7 @@ class JobQueue
     raise ArgumentError, "Job '#{name}' does not exist" unless @jobs[name]
 
     now = Time.now
-    @jobs[name]["schedule"] = Time.new(
+    @jobs[name].schedule = Time.new(
       year || now.year,
       month || now.month,
       day || now.day,

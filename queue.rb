@@ -8,19 +8,19 @@ require 'fileutils'
 def print_job(entry)
   name, job = entry
   printf "Name: %s\n", name
-  printf "\tSummary:   %s\n", job["summary"]
-  printf "\tPriority:  %i\n", job["priority"]
-  printf "\tTTC:       %i min\n", job["ttc"]
-  printf "\tParent:    %s\n", job["parent"] if job["parent"]
-  if job["children"]
+  printf "\tSummary:   %s\n", job.summary
+  printf "\tPriority:  %i\n", job.priority
+  printf "\tTTC:       %i min\n", job.ttc
+  printf "\tParent:    %s\n", job.parent if job.parent
+  if job.children
     printf "\tChildren:\n"
-    job["children"].each { |n| printf "\t\t%s\n", n }
+    job.children.each { |n| printf "\t\t%s\n", n }
   end
-  printf "\tAdded:     %s\n", job["added"].to_s
-  printf "\tStart:     %s\n", job["schedule"].to_s if job["schedule"]
-  printf "\tHeld:      %s\n", job["hold"].to_s if job["hold"]
-  printf "\tUnheld:    %s\n", job["unhold"].to_s if job["unhold"]
-  printf "\tCompleted: %s\n", job["completed"].to_s if job["completed"]
+  printf "\tAdded:     %s\n", job.added.to_s
+  printf "\tStart:     %s\n", job.schedule.to_s if job.schedule
+  printf "\tHeld:      %s\n", job.hold.to_s if job.hold
+  printf "\tUnheld:    %s\n", job.unhold.to_s if job.unhold
+  printf "\tCompleted: %s\n", job.completed.to_s if job.completed
   puts
 end
 
@@ -128,7 +128,7 @@ def cmd_mark(queue, name, status)
   end
 
   if status == "incomplete"
-    if queue.jobs[name]["parent"]
+    if queue.jobs[name].parent
       printf "This will mark all parent jobs as incomplete too.\n"
       printf "Do you want to continue [Y/n]? "
       ans = STDIN.gets.chomp.downcase
@@ -136,7 +136,7 @@ def cmd_mark(queue, name, status)
     end
     queue.mark_incomplete(name)
   else
-    if queue.jobs[name]["children"]
+    if queue.jobs[name].children
       printf "This will mark all child jobs as complete too.\n"
       printf "Do you want to continue [Y/n]? "
       ans = STDIN.gets.chomp.downcase
